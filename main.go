@@ -78,8 +78,8 @@ func (g *Gojanus) RemoveToken(token string) error {
 	return nil
 }
 
-func (g *Gojanus) ListToken() ([]string, error) {
-	log.Info("ListToken ")
+func (g *Gojanus) ListTokens() ([]string, error) {
+	log.Info("ListTokens")
 	tokens := []string{}
 	newUuid := uuid.NewV4()
 	transactionId := fmt.Sprintf("%s", newUuid)
@@ -105,6 +105,9 @@ func (g *Gojanus) ListToken() ([]string, error) {
 	if err := json.Unmarshal([]byte(string(body)), &objmap); err != nil {
 		return tokens, err
 	}
+    if objmap["janus"].(string) != "success" {
+		return tokens, errors.New(objmap["error"].(map[string]interface{})["reason"].(string))
+    }
 	length := len(objmap["data"].(map[string]interface{})["tokens"].([]interface{}))
 	index := 1
 	for index <= length {
@@ -114,9 +117,48 @@ func (g *Gojanus) ListToken() ([]string, error) {
 	return tokens, nil
 }
 
+func (g *Gojanus) ListSessions() ([]string, error) {
+	log.Info("ListSessions")
+	sessions := []string{}
+	newUuid := uuid.NewV4()
+	transactionId := fmt.Sprintf("%s", newUuid)
+
+	var jsonStr = []byte(`{
+        "janus" : "list_sessions",
+        "transaction": "` + string(transactionId) + `",
+        "admin_secret": "` + g.AdminSecret + `"
+	  }`)
+	req, err := http.NewRequest("POST", g.AdminURL, bytes.NewBuffer(jsonStr))
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return sessions, err
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return sessions, errors.New(string(body))
+	}
+	var objmap map[string]interface{}
+	if err := json.Unmarshal([]byte(string(body)), &objmap); err != nil {
+		return sessions, err
+	}
+    if objmap["janus"].(string) != "success" {
+		return sessions, errors.New(objmap["error"].(map[string]interface{})["reason"].(string))
+    }
+	length := len(objmap["sessions"].([]interface{}))
+	index := 1
+	for index <= length {
+		sessions = append(sessions, objmap["sessions"].([]interface{})[index-1].(string))
+		index++
+	}
+	return sessions, nil
+}
+
 func main() {
 	gojanus := &Gojanus{
-		AdminURL:    "http://herpiko-devbox.tarsius.id:7088/admin",
+		AdminURL:    "http://localhost:7088/admin",
 		AdminSecret: "janusoverlord",
 	}
 	token, err := gojanus.GenerateToken()
@@ -124,18 +166,18 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(token)
-	tokens, err := gojanus.ListToken()
+	tokens, err := gojanus.ListTokens()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(len(tokens))
-	err = gojanus.RemoveToken(tokens[0])
+	err = gojanus.RemoveToken(tokens[1])
 	if err != nil {
 		panic(err)
 	}
-	tokens, err = gojanus.ListToken()
+    sessions, err := gojanus.ListSessions()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(len(tokens))
+	fmt.Println(len(sessions))
 }
