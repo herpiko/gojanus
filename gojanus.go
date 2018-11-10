@@ -1,4 +1,4 @@
-package main
+package gojanus
 
 import (
 	"bytes"
@@ -156,6 +156,7 @@ func (g *Gojanus) ListSessions() ([]string, error) {
 	return sessions, nil
 }
 
+/*
 func main() {
 	gojanus := &Gojanus{
 		AdminURL:    "http://localhost:7088/admin",
@@ -181,3 +182,4 @@ func main() {
 	}
 	fmt.Println(len(sessions))
 }
+*/
